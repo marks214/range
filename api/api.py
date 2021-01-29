@@ -12,6 +12,21 @@ base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 app_key = os.getenv('EDAMAM_API_KEY')
 app_ID = os.getenv('EDAMAM_API_ID')
 
+class Food(db.Model):
+
+  id = db.Column(db.Integer, primary_key=True)
+  # nullable = False means it cannot be empty
+  name = db.Column(db.Text, nullable=False)
+  energy = db.Column(db.Float, nullable=False)
+  protein = db.Column(db.Float, nullable=False)
+  carbohydrate = db.Column(db.Float, nullable=False)
+  fat = db.Column(db.Float, nullable=False)
+  fiber = db.Column(db.Float, nullable=False)
+
+  def __str__(self):
+    return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber}'
+
+
 def construct_food(json_data):
   for i in len(json_data) - 1:
     Food(
@@ -37,8 +52,8 @@ def index(food):
     # data = response.json()['hints']
     # json.loads converts the data into a python object
     json_data = json.loads(response.content)
-    print(json_data['hints'])
-    return str(json_data)
+    #print(json_data['hints'])
+    return str(json_data['hints'][19]['food'])
 
 if __name__ == '__main__':
   app.run(debug=True)
