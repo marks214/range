@@ -28,15 +28,17 @@ class Food(db.Model):
 
 
 def construct_food(json_data):
-  for i in len(json_data) - 1:
-    Food(
-      name = json_data[i]['food']['label'],
-      energy = json_data[i]['food']['nutrients']['ENERC_KCAL'],
-      protein = json_data[i]['food']['nutrients']['PROCNT'],
-      carbohydrate = json_data[i]['food']['nutrients']['CHOCDF'],
-      fat = json_data[i]['food']['nutrients']['FAT'],
-      fiber = json_data[i]['food']['nutrients']['FIBTG']
-    )
+  for i in range(len(json_data) - 1):
+    name = json_data[i]['food']['label']
+    energy = json_data[i]['food']['nutrients']['ENERC_KCAL']
+    protein = json_data[i]['food']['nutrients']['PROCNT']
+    carbohydrate = json_data[i]['food']['nutrients']['CHOCDF']
+    fat = json_data[i]['food']['nutrients']['FAT']
+    fiber = 0
+    food = Food(name=name, energy=energy, protein=protein, carbohydrate=carbohydrate, fat=fat, fiber=fiber)
+    db.session.add(food)
+    db.session.commit()
+    print(f'{food.name} added to database')
 
 @app.route('/', defaults={'food' : ''})
 @app.route('/<food>', methods= ['GET', 'POST'])
@@ -52,8 +54,12 @@ def index(food):
     # data = response.json()['hints']
     # json.loads converts the data into a python object
     json_data = json.loads(response.content)
-    #print(json_data['hints'])
-    return str(json_data['hints'][19]['food'])
+    results = construct_food(json_data['hints'])
+    tests = Food.query.all()
+    show = [{
+      "name" : test.name
+    } for test in tests]
+    return str(show)
 
 if __name__ == '__main__':
   app.run(debug=True)
