@@ -25,7 +25,7 @@ class Food(db.Model):
   carbohydrate = db.Column(db.Float, nullable=True)
   fat = db.Column(db.Float, nullable=True)
   fiber = db.Column(db.Float, nullable=True)
-  external_id = db.Column(db.String, nullable=True)
+  external_id = db.Column(db.String, nullable=True, unique=True)
 
   def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
     self.name = name
