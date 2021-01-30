@@ -3,25 +3,36 @@ import requests
 import os
 import json
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///foods.db"
 db = SQLAlchemy(app)
+migrate = Migrate(app,db)
 
 base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 app_key = os.getenv('EDAMAM_API_KEY')
 app_ID = os.getenv('EDAMAM_API_ID')
 
 class Food(db.Model):
+  __tablename__ = 'foods'
 
   id = db.Column(db.Integer, primary_key=True)
   # nullable = False means it cannot be empty
   name = db.Column(db.Text, nullable=False)
-  energy = db.Column(db.Float, nullable=False)
-  protein = db.Column(db.Float, nullable=False)
-  carbohydrate = db.Column(db.Float, nullable=False)
-  fat = db.Column(db.Float, nullable=False)
-  fiber = db.Column(db.Float, nullable=False)
+  energy = db.Column(db.Float, nullable=True)
+  protein = db.Column(db.Float, nullable=True)
+  carbohydrate = db.Column(db.Float, nullable=True)
+  fat = db.Column(db.Float, nullable=True)
+  fiber = db.Column(db.Float, nullable=True)
+
+  def __init__(self, name, energy, protein, carbohydrate, fat, fiber):
+    self.name = name
+    self.energy = energy
+    self.protein = protein
+    self.carbohydrate = carbohydrate
+    self.fat = fat
+    self.fiber = fiber
 
   def __str__(self):
     return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber}'
