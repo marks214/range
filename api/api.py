@@ -25,28 +25,39 @@ class Food(db.Model):
   carbohydrate = db.Column(db.Float, nullable=True)
   fat = db.Column(db.Float, nullable=True)
   fiber = db.Column(db.Float, nullable=True)
+  external_id = db.Column(db.String, nullable=True)
 
-  def __init__(self, name, energy, protein, carbohydrate, fat, fiber):
+  def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
     self.name = name
     self.energy = energy
     self.protein = protein
     self.carbohydrate = carbohydrate
     self.fat = fat
     self.fiber = fiber
+    self.external_id = external_id
 
   def __str__(self):
-    return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber}'
+    return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id}'
 
 
 def construct_food(json_data):
   for i in range(len(json_data) - 1):
     name = json_data[i]['food']['label']
-    energy = json_data[i]['food']['nutrients']['ENERC_KCAL']
-    protein = json_data[i]['food']['nutrients']['PROCNT']
-    carbohydrate = json_data[i]['food']['nutrients']['CHOCDF']
-    fat = json_data[i]['food']['nutrients']['FAT']
-    fiber = 0
-    food = Food(name=name, energy=energy, protein=protein, carbohydrate=carbohydrate, fat=fat, fiber=fiber)
+    
+    energy = json_data[i]['food']['nutrients']['ENERC_KCAL'] if json_data[i]['food']['nutrients']['ENERC_KCAL'] else 0
+    
+    protein = json_data[i]['food']['nutrients']['PROCNT'] if json_data[i]['food']['nutrients']['PROCNT'] else 0
+      
+    carbohydrate = json_data[i]['food']['nutrients']['CHOCDF'] if json_data[i]['food']['nutrients']['CHOCDF'] else 0
+      
+    fat = json_data[i]['food']['nutrients']['FAT'] if json_data[i]['food']['nutrients']['FAT'] else 0
+      
+    fiber = json_data[i]['food']['nutrients']['FIBTG'] if json_data[i]['food']['nutrients']['FIBTG'] else 0
+
+    external_id = json_data[i]['food']['foodID']
+      
+
+    food = Food(name=name, energy=energy, protein=protein, carbohydrate=carbohydrate, fat=fat, fiber=fiber, external_id=external_id)
     db.session.add(food)
     db.session.commit()
     print(f'{food.name} added to database')
@@ -79,26 +90,26 @@ def index(food):
         return {"message": f'{new_food.name} has been created successfully.'}
       else:
         return {"error": "The request failed."}
-      #   json_data = json.loads(response.content)
-      # results = construct_food(json_data['hints'])
-      # tests = Food.query.all()
-      # show = [{
-      # "name" : test.name
-      # } for test in tests]
-      # return str(show)
     elif request.method == 'GET':
-      foods = Food.query.all()
-      results = [
-        {
-          'id': food.id,
-          'name': food.name,
-          'energy': food.energy,
-          'protein': food.protein,
-          'carbohydrate': food.carbohydrate,
-          'fat': food.fat,
-          'fiber': food.fiber
-        } for food in foods]
-      return str(results)
+      json_data = json.loads(response.content)
+      results = construct_food(json_data['hints'])
+      tests = Food.query.all()
+      show = [{
+      "name" : test.name
+      } for test in tests]
+      return str(show)
+      # foods = Food.query.all()
+      # results = [
+      #   {
+      #     'id': food.id,
+      #     'name': food.name,
+      #     'energy': food.energy,
+      #     'protein': food.protein,
+      #     'carbohydrate': food.carbohydrate,
+      #     'fat': food.fat,
+      #     'fiber': food.fiber
+      #   } for food in foods]
+      # return str(results)
 
 if __name__ == '__main__':
   app.run(debug=True)
