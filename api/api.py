@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 import requests
 import os
 import json
@@ -54,23 +54,51 @@ def construct_food(json_data):
 @app.route('/', defaults={'food' : ''})
 @app.route('/<food>', methods= ['GET', 'POST'])
 def index(food):
-  if food == '':
-    return {
-    'name' : 'Hello World!'
-  }
-  else:
-    url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
-    response = requests.get(url)
+  url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
+  response = requests.get(url)
     # response = 200, response.content is the json with \n, \b, etc.
     # data = response.json()['hints']
     # json.loads converts the data into a python object
-    json_data = json.loads(response.content)
-    results = construct_food(json_data['hints'])
-    tests = Food.query.all()
-    show = [{
-      "name" : test.name
-    } for test in tests]
-    return str(show)
+  if food == '':
+    return {
+      'name' : 'Hello World!'
+      }
+  else:
+    if request.method == 'POST':
+      if request.is_json:
+        data = request.get_json()
+        new_food = Food(
+          name=data['name'],
+          energy=data['energy'],
+          protein=data['protein'],
+          carbohydrate=data['carbohydrate'],
+          fat=data['fat'],
+          fiber=data['fiber'])
+        db.session.add(new_food)
+        db.session.commit()
+        return {"message": f'{new_food.name} has been created successfully.'}
+      else:
+        return {"error": "The request failed."}
+      #   json_data = json.loads(response.content)
+      # results = construct_food(json_data['hints'])
+      # tests = Food.query.all()
+      # show = [{
+      # "name" : test.name
+      # } for test in tests]
+      # return str(show)
+    elif request.method == 'GET':
+      foods = Food.query.all()
+      results = [
+        {
+          'id': food.id,
+          'name': food.name,
+          'energy': food.energy,
+          'protein': food.protein,
+          'carbohydrate': food.carbohydrate,
+          'fat': food.fat,
+          'fiber': food.fiber
+        } for food in foods]
+      return str(results)
 
 if __name__ == '__main__':
   app.run(debug=True)
