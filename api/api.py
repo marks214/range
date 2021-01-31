@@ -4,6 +4,7 @@ import os
 import json
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy.schema import UniqueConstraint
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///foods.db"
@@ -26,6 +27,7 @@ class Food(db.Model):
   fat = db.Column(db.Float, nullable=True)
   fiber = db.Column(db.Float, nullable=True)
   external_id = db.Column(db.String, nullable=True, unique=True)
+  #db.UniqueConstraint(external_id)
 
   def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
     self.name = name
@@ -42,25 +44,32 @@ class Food(db.Model):
 
 def construct_food(json_data):
   for i in range(len(json_data) - 1):
-    name = json_data[i]['food']['label']
-    
-    energy = json_data[i]['food']['nutrients']['ENERC_KCAL'] if json_data[i]['food']['nutrients']['ENERC_KCAL'] else 0
-    
-    protein = json_data[i]['food']['nutrients']['PROCNT'] if json_data[i]['food']['nutrients']['PROCNT'] else 0
-      
-    carbohydrate = json_data[i]['food']['nutrients']['CHOCDF'] if json_data[i]['food']['nutrients']['CHOCDF'] else 0
-      
-    fat = json_data[i]['food']['nutrients']['FAT'] if json_data[i]['food']['nutrients']['FAT'] else 0
-      
-    fiber = json_data[i]['food']['nutrients']['FIBTG'] if json_data[i]['food']['nutrients']['FIBTG'] else 0
+    # check for unique external id
+    external_id = json_data[i]['food']['foodId']
+    exists = Food.query.filter_by(external_id=external_id).first()
 
-    external_id = json_data[i]['food']['foodID']
-      
+    if exists is None:
+      name = json_data[i]['food']['label']
 
-    food = Food(name=name, energy=energy, protein=protein, carbohydrate=carbohydrate, fat=fat, fiber=fiber, external_id=external_id)
-    db.session.add(food)
-    db.session.commit()
-    print(f'{food.name} added to database')
+      energy = json_data[i]['food']['nutrients']['ENERC_KCAL'] if   'ENERC_KCAL' in json_data[i]['food']['nutrients'].keys()  else 0
+
+      protein = json_data[i]['food']['nutrients']['PROCNT'] if  'PROCNT' in json_data[i]['food']['nutrients'].keys() else 0
+
+      carbohydrate = json_data[i]['food']['nutrients']['CHOCDF']  if 'CHOCDF' in json_data[i]['food']['nutrients'].keys() else   0
+
+      fat = json_data[i]['food']['nutrients']['FAT'] if 'FAT' in  json_data[i]['food']['nutrients'].keys() else 0
+
+      fiber = json_data[i]['food']['nutrients']['FIBTG'] if   'FIBTG' in json_data[i]['food']['nutrients'].keys() else 0
+
+      external_id = json_data[i]['food']['foodId']
+
+      food = Food(name=name, energy=energy, protein=protein,  carbohydrate=carbohydrate, fat=fat, fiber=fiber,   external_id=external_id)
+      db.session.add(food)
+      db.session.commit()
+      print(f'{food.name} added to database')
+      
+    else:
+      pass
 
 @app.route('/', defaults={'food' : ''})
 @app.route('/<food>', methods= ['GET', 'POST'])
@@ -93,23 +102,19 @@ def index(food):
     elif request.method == 'GET':
       json_data = json.loads(response.content)
       results = construct_food(json_data['hints'])
-      tests = Food.query.all()
-      show = [{
-      "name" : test.name
-      } for test in tests]
-      return str(show)
-      # foods = Food.query.all()
-      # results = [
-      #   {
-      #     'id': food.id,
-      #     'name': food.name,
-      #     'energy': food.energy,
-      #     'protein': food.protein,
-      #     'carbohydrate': food.carbohydrate,
-      #     'fat': food.fat,
-      #     'fiber': food.fiber
-      #   } for food in foods]
-      # return str(results)
+      all_foods = Food.query.all()
+      display_foods = [
+        {
+          'id': food.id,
+          'name': food.name,
+          'energy': food.energy,
+          'protein': food.protein,
+          'carbohydrate': food.carbohydrate,
+          'fat': food.fat,
+          'fiber': food.fiber,
+          'external_id': food.external_id
+        } for food in all_foods]
+      return str(display_foods)
 
 if __name__ == '__main__':
   app.run(debug=True)
