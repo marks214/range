@@ -6,8 +6,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy.schema import UniqueConstraint
 
+
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///foods.db"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app,db)
 
@@ -15,32 +17,7 @@ base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 app_key = os.getenv('EDAMAM_API_KEY')
 app_ID = os.getenv('EDAMAM_API_ID')
 
-class Food(db.Model):
-  __tablename__ = 'foods'
-
-  id = db.Column(db.Integer, primary_key=True)
-  # nullable = False means it cannot be empty
-  name = db.Column(db.Text, nullable=False)
-  energy = db.Column(db.Float, nullable=True)
-  protein = db.Column(db.Float, nullable=True)
-  carbohydrate = db.Column(db.Float, nullable=True)
-  fat = db.Column(db.Float, nullable=True)
-  fiber = db.Column(db.Float, nullable=True)
-  external_id = db.Column(db.String, nullable=True, unique=True)
-  #db.UniqueConstraint(external_id)
-
-  def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
-    self.name = name
-    self.energy = energy
-    self.protein = protein
-    self.carbohydrate = carbohydrate
-    self.fat = fat
-    self.fiber = fiber
-    self.external_id = external_id
-
-  def __str__(self):
-    return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id}'
-
+from models import Food, Meal, User
 
 def construct_food(json_data):
   for i in range(len(json_data) - 1):
@@ -67,7 +44,7 @@ def construct_food(json_data):
       db.session.add(food)
       db.session.commit()
       print(f'{food.name} added to database')
-      
+
     else:
       pass
 
@@ -103,7 +80,7 @@ def index(food):
       json_data = json.loads(response.content)
       results = construct_food(json_data['hints'])
       all_foods = Food.query.all()
-      display_foods = [
+      foods_list = [
         {
           'id': food.id,
           'name': food.name,
@@ -114,7 +91,7 @@ def index(food):
           'fiber': food.fiber,
           'external_id': food.external_id
         } for food in all_foods]
-      return str(display_foods)
+      return str(foods_list)
 
 if __name__ == '__main__':
   app.run(debug=True)
