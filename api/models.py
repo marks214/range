@@ -12,16 +12,14 @@ class Food(db.Model):
     fat = db.Column(db.Float, nullable=True)
     fiber = db.Column(db.Float, nullable=True)
     external_id = db.Column(db.String, nullable=True, unique=True)
-    # db.UniqueConstraint(external_id)
 
-    def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
+    def __init__(self, name, energy, protein, carbohydrate, fat, fiber):
         self.name = name
         self.energy = energy
         self.protein = protein
         self.carbohydrate = carbohydrate
         self.fat = fat
         self.fiber = fiber
-        self.external_id = external_id
 
     def __str__(self):
         return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id}'

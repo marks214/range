@@ -54,7 +54,6 @@ def construct_food(json_data):
         else:
             pass
 
-
 def food_serializer(food):
     return {
         'id': food.id,
@@ -68,40 +67,41 @@ def food_serializer(food):
     }
 
 
-@app.route('/', defaults={'food': ''})
-@app.route('/<food>', methods=['GET'])
+@app.route('/', methods=['GET', 'POST'], defaults={'food': ''})
+@app.route('/<food>', methods=['GET', 'POST'])
 def index(food):
-    # response = 200, response.content is the json with \n, \b, etc.
-    # data = response.json()['hints']
-    # json.loads converts the data into a python object
-    search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
-    if len(search_results) == 0:
-        url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
-        response = requests.get(url)
-        data = response.json()['hints']
-        found_foods = construct_food(data)
-        food_matches = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
-        return jsonify([*map(food_serializer, food_matches)])
-    elif len(search_results) > 0:
-        return jsonify([*map(food_serializer, search_results)])
-    else:
-      pass
+    if food == '':
+        pass
+    if request.method == 'GET':
+        search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
+        if len(search_results) == 0:
+            url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
+            response = requests.get(url)
+            data = response.json()['hints']
+            found_foods = construct_food(data)
+            food_matches = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
+            return jsonify([*map(food_serializer, food_matches)])
+        elif len(search_results) > 0:
+            return jsonify([*map(food_serializer, search_results)])
+        else:
+          pass
 
-    # if request.method == 'POST':
-    #     if request.is_json:
-    #         data = request.get_json()
-    #         new_food = Food(
-    #             name=data['name'],
-    #             energy=data['energy'],
-    #             protein=data['protein'],
-    #             carbohydrate=data['carbohydrate'],
-    #             fat=data['fat'],
-    #             fiber=data['fiber'])
-    #         db.session.add(new_food)
-    #         db.session.commit()
-    #         return {"message": f'{new_food.name} has been created successfully.'}
-    #     else:
-    #         return {"error": "The request failed."}
+    elif request.method == 'POST':
+        if request.is_json:
+            data = request.get_json()
+            new_food = Food(
+                name=data['name'],
+                energy=int(data['energy']),
+                protein=int(data['protein']),
+                carbohydrate=int(data['carbohydrate']),
+                fat=int(data['fat']),
+                fiber=int(data['fiber']))
+            db.session.add(new_food)
+            db.session.commit()
+            recently_added = Food.query.filter_by(name=new_food.name)
+            return jsonify([*map(food_serializer, recently_added)])
+        else:
+            return {"error": "The request failed."}
     # elif request.method == 'GET':
     #     url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
     #     data = response.json()['hints']
