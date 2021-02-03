@@ -1,10 +1,7 @@
 from flask import Flask, request, jsonify, json
-import requests
-import os
-import json
+import requests, uuid, os, json
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from sqlalchemy.schema import UniqueConstraint
 
 
 app = Flask(__name__)
@@ -17,7 +14,7 @@ base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 app_key = os.getenv('EDAMAM_API_KEY')
 app_ID = os.getenv('EDAMAM_API_ID')
 
-from models import Food  # , Meal, User
+from models import Food, Meal, User
 
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
@@ -89,8 +86,10 @@ def index(food):
     elif request.method == 'POST':
         if request.is_json:
             data = request.get_json()
+            name = data['name']
             new_food = Food(
-                name=data['name'],
+                external_id=f'{name}{uuid.uuid1()}',
+                name=name,
                 energy=int(data['energy']),
                 protein=int(data['protein']),
                 carbohydrate=int(data['carbohydrate']),
@@ -102,25 +101,6 @@ def index(food):
             return jsonify([*map(food_serializer, recently_added)])
         else:
             return {"error": "The request failed."}
-    # elif request.method == 'GET':
-    #     url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
-    #     data = response.json()['hints']
-    #     return jsonify([*map(food_serializer, Food.query.filter_by(Food.name.ilike(f'%{food}%')))])
-        # json_data = json.loads(response.content)
-        # results = construct_food(json_data['hints'])
-        # all_foods = Food.query.all()
-        # foods_list = [
-        #     {
-        #         'id': food.id,
-        #         'name': food.name,
-        #         'energy': food.energy,
-        #         'protein': food.protein,
-        #         'carbohydrate': food.carbohydrate,
-        #         'fat': food.fat,
-        #         'fiber': food.fiber,
-        #         'external_id': food.external_id
-        #     } for food in all_foods]
-        # return str(foods_list)
 
 
 if __name__ == '__main__':

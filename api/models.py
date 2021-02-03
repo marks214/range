@@ -1,7 +1,7 @@
 from api import db
 
 class Food(db.Model):
-    __tablename__ = 'foods'
+    __tablename__ = 'food'
 
     id = db.Column(db.Integer, primary_key=True)
     # nullable = False means it cannot be empty
@@ -12,6 +12,7 @@ class Food(db.Model):
     fat = db.Column(db.Float, nullable=True)
     fiber = db.Column(db.Float, nullable=True)
     external_id = db.Column(db.String, nullable=True, unique=True)
+    food_meal = db.relationship('Meal', backref='food', uselist=False) #uselist sets up one-to-one instead of one-to-many
 
     def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
         self.name = name
@@ -26,36 +27,42 @@ class Food(db.Model):
         return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id}'
 
 
-# class User(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     username = db.Column(db.String, nullable=False, unique=True)
-#     password = db.Column(db.String, nullable=False)
-#     # the following are per day (e.g., minimum grams of protein per day)
-#     energy_min = db.Column(db.Integer, nullable=True)
-#     energy_max = db.Column(db.Integer, nullable=True)
-#     protein_min = db.Column(db.Integer, nullable=True)
-#     protein_max = db.Column(db.Integer, nullable=True)
-#     carb_min = db.Column(db.Integer, nullable=True)
-#     carb_max = db.Column(db.Integer, nullable=True)
-#     fat_min = db.Column(db.Integer, nullable=True)
-#     fat_max = db.Column(db.Integer, nullable=True)
+class User(db.Model):
+    __tablename__ = 'user'
 
-#     def __repr__(self):
-#         return '<User %>' % self.username
-
-# # a meal is an individual food consumed by the user (meals do not have multiple foods)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, nullable=False, unique=True)
+    password = db.Column(db.String, nullable=False)
+    # the following are per day (e.g., minimum grams of protein per day)
+    energy_min = db.Column(db.Integer, nullable=True)
+    energy_max = db.Column(db.Integer, nullable=True)
+    protein_min = db.Column(db.Integer, nullable=True)
+    protein_max = db.Column(db.Integer, nullable=True)
+    carb_min = db.Column(db.Integer, nullable=True)
+    carb_max = db.Column(db.Integer, nullable=True)
+    fat_min = db.Column(db.Integer, nullable=True)
+    fat_max = db.Column(db.Integer, nullable=True)
+    user_meal = db.relationship('Meal', backref='user')
 
 
-# class Meal(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-#     food_id = db.Column(db.Integer, db.ForeignKey('food.id'), nullable=False)
-#     name = db.Column(db.String, nullable=False)
-#     energy = db.Column(db.Integer, nullable=True)
-#     protein = db.Column(db.Integer, nullable=True)
-#     carb = db.Column(db.Integer, nullable=True)
-#     fat = db.Column(db.Integer, nullable=True)
-#     time = db.Column(db.DateTime, nullable=False)
+    def __repr__(self):
+        return '<User %>' % self.username
 
-#     def __repr__(self):
-#         return '<Meal %r>' % self.name
+# a meal is an individual food consumed by the user (meals do not have multiple foods)
+
+
+class Meal(db.Model):
+    __tablename__ = 'meal'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    food_id = db.Column(db.Integer, db.ForeignKey('food.id'))
+    name = db.Column(db.String, nullable=False)
+    energy = db.Column(db.Integer, nullable=True)
+    protein = db.Column(db.Integer, nullable=True)
+    carb = db.Column(db.Integer, nullable=True)
+    fat = db.Column(db.Integer, nullable=True)
+    time = db.Column(db.DateTime, nullable=False)
+
+    def __repr__(self):
+        return '<Meal %r>' % self.name
