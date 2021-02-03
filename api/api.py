@@ -8,7 +8,7 @@ from sqlalchemy.schema import UniqueConstraint
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///foods.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('POSTGRES')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
