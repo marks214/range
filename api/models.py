@@ -1,4 +1,4 @@
-from app import db
+from api import db
 
 class Food(db.Model):
     __tablename__ = 'food'
@@ -33,6 +33,9 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, nullable=False, unique=True)
     password = db.Column(db.String, nullable=False)
+    roles = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True, server_default='true')
+
     # the following are per day (e.g., minimum grams of protein per day)
     energy_min = db.Column(db.Integer, nullable=True)
     energy_max = db.Column(db.Integer, nullable=True)
@@ -44,6 +47,27 @@ class User(db.Model):
     fat_max = db.Column(db.Integer, nullable=True)
     user_meal = db.relationship('Meal', backref='user')
 
+    @property
+    def rolenames(self):
+        try:
+            return self.roles.split(',')
+        except Exception:
+            return []
+
+    @classmethod
+    def lookup(cls, username):
+        return cls.query.filter_by(username=username).one_or_none()
+
+    @classmethod
+    def identify(cls, id):
+        return cls.query.get(id)
+
+    @property
+    def identity(self):
+        return self.id
+    
+    def is_valid(self):
+        return self.is_active
 
     def __repr__(self):
         return '<User %>' % self.username

@@ -1,20 +1,89 @@
 from flask import Flask, request, jsonify, json
-import requests, uuid, os, json
+import requests, uuid, os, json, secrets
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-
+import flask_praetorian
+import flask_cors
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('POSTGRES')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+guard = flask_praetorian.Praetorian()
+cors = flask_cors.CORS()
 
 base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 app_key = os.getenv('EDAMAM_API_KEY')
 app_ID = os.getenv('EDAMAM_API_ID')
 
 from models import Food, Meal, User
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+secret_key = secrets.token_hex(16)
+app.config['SECRET_KEY'] = secret_key
+app.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
+app.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
+
+guard.init_app(app, User)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://dbmasteruser:2BE:K$b(tgRjEi<JHWKeu7|Q7pjiy;_v@ls-86a832d304e8ec639a5771d66a0e55b8d098a550.ck91wsiodwbr.us-west-2.rds.amazonaws.com:5432/postgres'
+# os.getenv('POSTGRES')
+db.init_app(app)
+migrate = Migrate(app, db)
+cors.init_app(app)
+
+with app.app_context():
+    db.create_all()
+    if db.session.query(User).filter_by(username='Aimee').count() < 1:
+        db.session.add(User(
+          username='Aimee',
+          password=guard.hash_password('strongpassword'),
+          roles='admin'
+		))
+    db.session.commit()
+
+# from https://yasoob.me/posts/how-to-setup-and-deploy-jwt-auth-using-react-and-flask/:
+@app.route('/api/login', methods=['POST'])
+def login():
+    """
+    Logs a user in by parsing a POST request containing user credentials and
+    issuing a JWT token.
+    .. example::
+       $ curl http://localhost:5000/api/login -X POST \
+         -d '{"username":"Aimee","password":"strongpassword"}'
+    """
+    req = request.get_json(force=True)
+    username = req.get('username', None)
+    password = req.get('password', None)
+    user = guard.authenticate(username, password)
+    ret = {'access_token': guard.encode_jwt_token(user)}
+    return ret, 200
+
+@app.route('/api/refresh', methods=['POST'])
+def refresh():
+    """
+    Refreshes an existing JWT by creating a new one that is a copy of the old
+    except that it has a refrehsed access expiration.
+    .. example::
+       $ curl http://localhost:5000/api/refresh -X GET \
+         -H "Authorization: Bearer <your_token>"
+    """
+    print("refresh request")
+    old_token = request.get_data()
+    new_token = guard.refresh_jwt_token(old_token)
+    ret = {'access_token': new_token}
+    return ret, 200
+  
+  
+@app.route('/api/protected')
+@flask_praetorian.auth_required
+def protected():
+    """
+    A protected endpoint. The auth_required decorator will require a header
+    containing a valid JWT
+    .. example::
+       $ curl http://localhost:5000/api/protected -X GET \
+         -H "Authorization: Bearer <your_token>"
+    """
+    return {'message': f'protected endpoint (allowed user {flask_praetorian.current_user().username})'}
 
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
@@ -63,12 +132,11 @@ def food_serializer(food):
         'external_id': food.external_id
     }
 
-
-@app.route('/', methods=['GET', 'POST'], defaults={'food': ''})
-@app.route('/<food>', methods=['GET', 'POST'])
+@app.route('/api/food', methods=['GET', 'POST'], defaults={'food': ''})
+@app.route('/api/food/<food>', methods=['GET', 'POST'])
 def index(food):
     if food == '':
-        pass
+        return '<h1>WELCOME!</h1>'
     if request.method == 'GET':
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
         if len(search_results) == 0:
@@ -101,7 +169,6 @@ def index(food):
             return jsonify([*map(food_serializer, recently_added)])
         else:
             return {"error": "The request failed."}
-
 
 if __name__ == '__main__':
     app.run(debug=True)
