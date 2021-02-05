@@ -181,7 +181,7 @@ def meal_serializer(meal):
         'time': meal.time
     }
 
-@app.route('/api/meal', methods=['GET', 'POST', 'DELETE', 'PUT'])
+@app.route('/api/meal', methods=['GET', 'POST'])
 def meal():
     if request.method == 'POST':
         if request.is_json:
@@ -206,21 +206,15 @@ def meal():
             return {"error": "The request failed."}
     elif request.method == 'GET':
         logged_meals = Meal.query.all()
-        if len(logged_meals) == 0:
-            return {"message": "no food entries exist for user"}
-        elif len(logged_meals) > 0:
-            return jsonify([*map(meal_serializer, logged_meals)])
-        else:
-          pass
-    elif request.method == 'DELETE':
-        if request.is_json:
-            data = request.get_json()
-            meal = Meal.query.filter_by(food_id=data['time'])
-            db.session.delete(meal)
-            db.commit()
-            return {"message": "Meal deleted."}
-        else:
-            pass
+        return jsonify([*map(meal_serializer, logged_meals)])
+
+@app.route('/api/delete_meal', methods=['POST'])
+def delete():
+    request_data = json.loads(request.data)
+    Meal.query.filter_by(id=request_data['id']).delete()
+    db.session.commit()
+    logged_meals = Meal.query.all()
+    return jsonify([*map(meal_serializer, logged_meals)])
 
 if __name__ == '__main__':
     app.run(debug=True)
