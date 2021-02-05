@@ -15,7 +15,7 @@ class Food(db.Model):
     image = db.Column(db.String, nullable=False)
     food_meal = db.relationship('Meal', backref='food', uselist=False) #uselist sets up one-to-one instead of one-to-many
 
-    def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id, image, quantity):
+    def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id, image):
         self.name = name
         self.energy = energy
         self.protein = protein
@@ -24,7 +24,6 @@ class Food(db.Model):
         self.fiber = fiber
         self.external_id = external_id
         self.image = image
-        self.quantity = quantity
 
     def __str__(self):
         return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id} {self.image} {self.quantity}'

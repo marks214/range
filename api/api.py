@@ -113,8 +113,14 @@ def construct_food(json_data):
 
             external_id = json_data[i]['food']['foodId']
 
-            food = Food(name=name, energy=energy, protein=protein,
-                        carbohydrate=carbohydrate, fat=fat, fiber=fiber,   external_id=external_id)
+            food = Food(name=name, 
+            energy=energy, 
+            protein=protein,
+            carbohydrate=carbohydrate, 
+            fat=fat,
+            fiber=fiber,
+            image=image,
+            external_id=external_id)
             db.session.add(food)
             db.session.commit()
             print(f'{food.name} added to database')
