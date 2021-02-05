@@ -12,9 +12,11 @@ class Food(db.Model):
     fat = db.Column(db.Float, nullable=True)
     fiber = db.Column(db.Float, nullable=True)
     external_id = db.Column(db.String, nullable=True, unique=True)
+    quantity = db.Column(db.Float, nullable=False)
+    image = db.Column(db.String, nullable=False)
     food_meal = db.relationship('Meal', backref='food', uselist=False) #uselist sets up one-to-one instead of one-to-many
 
-    def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id):
+    def __init__(self, name, energy, protein, carbohydrate, fat, fiber, external_id, image, quantity):
         self.name = name
         self.energy = energy
         self.protein = protein
@@ -22,9 +24,11 @@ class Food(db.Model):
         self.fat = fat
         self.fiber = fiber
         self.external_id = external_id
+        self.image = image
+        self.quantity = quantity
 
     def __str__(self):
-        return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id}'
+        return f'{self.id} {self.name} {self.energy} {self.protein} {self.carbohydrate} {self.fat} {self.fiber} {self.external_id} {self.image} {self.quantity}'
 
 
 class User(db.Model):
@@ -87,6 +91,8 @@ class Meal(db.Model):
     carbohydrate = db.Column(db.Integer, nullable=True)
     fat = db.Column(db.Integer, nullable=True)
     fiber = db.Column(db.Integer, nullable=True)
+    image = db.Column(db.String, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
     time = db.Column(db.DateTime, nullable=False)
 
     def __repr__(self):
