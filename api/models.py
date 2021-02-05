@@ -79,13 +79,14 @@ class Meal(db.Model):
     __tablename__ = 'meal'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    food_id = db.Column(db.Integer, db.ForeignKey('food.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    food_id = db.Column(db.Integer, db.ForeignKey('food.id'), nullable=False)
     name = db.Column(db.String, nullable=False)
     energy = db.Column(db.Integer, nullable=True)
     protein = db.Column(db.Integer, nullable=True)
-    carb = db.Column(db.Integer, nullable=True)
+    carbohydrate = db.Column(db.Integer, nullable=True)
     fat = db.Column(db.Integer, nullable=True)
+    fiber = db.Column(db.Integer, nullable=True)
     time = db.Column(db.DateTime, nullable=False)
 
     def __repr__(self):

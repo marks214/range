@@ -4,9 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import flask_praetorian
 import flask_cors
+from datetime import datetime
 
 app = Flask(__name__)
-db = SQLAlchemy(app)
 guard = flask_praetorian.Praetorian()
 cors = flask_cors.CORS()
 
@@ -14,19 +14,18 @@ base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 app_key = os.getenv('EDAMAM_API_KEY')
 app_ID = os.getenv('EDAMAM_API_ID')
 
-from models import Food, Meal, User
-
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 secret_key = secrets.token_hex(16)
 app.config['SECRET_KEY'] = secret_key
 app.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
 app.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
-
-guard.init_app(app, User)
-
 app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://dbmasteruser:2BE:K$b(tgRjEi<JHWKeu7|Q7pjiy;_v@ls-86a832d304e8ec639a5771d66a0e55b8d098a550.ck91wsiodwbr.us-west-2.rds.amazonaws.com:5432/postgres'
 # os.getenv('POSTGRES')
-db.init_app(app)
+db = SQLAlchemy(app)
+from models import Food, Meal, User
+guard.init_app(app, User)
+
+#db.init_app(app)
 migrate = Migrate(app, db)
 cors.init_app(app)
 
@@ -169,6 +168,59 @@ def index(food):
             return jsonify([*map(food_serializer, recently_added)])
         else:
             return {"error": "The request failed."}
+
+def meal_serializer(meal):
+    return {
+        'id': meal.id,
+        'name': meal.name,
+        'energy': meal.energy,
+        'protein': meal.protein,
+        'carbohydrate': meal.carbohydrate,
+        'fat': meal.fat,
+        'fiber': meal.fiber,
+        'time': meal.time
+    }
+
+@app.route('/api/meal', methods=['GET', 'POST', 'DELETE', 'PUT'])
+def meal():
+    if request.method == 'POST':
+        if request.is_json:
+            data = request.get_json()
+            name = data['name']
+            new_meal = Meal(
+                name=name,
+                energy=data['energy'],
+                protein=data['protein'],
+                carbohydrate=data['carbohydrate'],
+                fat=data['fat'],
+                fiber=data['fiber'],
+                time=datetime.now(),
+                food_id=data['id'],
+                user_id=2 # hard-coded as Aimee
+                )
+            db.session.add(new_meal)
+            db.session.commit()
+            recently_added = Meal.query.filter_by(name=new_meal.name)
+            return jsonify([*map(meal_serializer, recently_added)])
+        else:
+            return {"error": "The request failed."}
+    elif request.method == 'GET':
+        logged_meals = Meal.query.all()
+        if len(logged_meals) == 0:
+            return {"message": "no food entries exist for user"}
+        elif len(logged_meals) > 0:
+            return jsonify([*map(meal_serializer, logged_meals)])
+        else:
+          pass
+    elif request.method == 'DELETE':
+        if request.is_json:
+            data = request.get_json()
+            meal = Meal.query.filter_by(food_id=data['time'])
+            db.session.delete(meal)
+            db.commit()
+            return {"message": "Meal deleted."}
+        else:
+            pass
 
 if __name__ == '__main__':
     app.run(debug=True)
