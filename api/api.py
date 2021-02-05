@@ -108,6 +108,9 @@ def construct_food(json_data):
             fiber = json_data[i]['food']['nutrients']['FIBTG'] if 'FIBTG' in json_data[i]['food']['nutrients'].keys(
             ) else 0
 
+            # Image by <a href="https://pixabay.com/users/daria-yakovleva-3938704/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=1898194">Дарья Яковлева</a> from <a href="https://pixabay.com/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=1898194">Pixabay</a>
+            image = json_data[i]['food']['image'] if 'image' in json_data[i]['food'].keys() else 'https://cdn.pixabay.com/photo/2016/12/10/21/26/food-1898194_960_720.jpg'
+
             external_id = json_data[i]['food']['foodId']
 
             food = Food(name=name, energy=energy, protein=protein,
@@ -128,6 +131,7 @@ def food_serializer(food):
         'carbohydrate': food.carbohydrate,
         'fat': food.fat,
         'fiber': food.fiber,
+        'image': food.image,
         'external_id': food.external_id
     }
 
@@ -161,7 +165,8 @@ def index(food):
                 protein=int(data['protein']),
                 carbohydrate=int(data['carbohydrate']),
                 fat=int(data['fat']),
-                fiber=int(data['fiber']))
+                fiber=int(data['fiber']),
+                image='https://cdn.pixabay.com/photo/2016/12/10/21/26/food-1898194_960_720.jpg') #hard-coded image
             db.session.add(new_food)
             db.session.commit()
             recently_added = Food.query.filter_by(name=new_food.name)
