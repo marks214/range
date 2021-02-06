@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import flask_praetorian
 import flask_cors
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 guard = flask_praetorian.Praetorian()
@@ -219,6 +219,32 @@ def meal():
         logged_meals = Meal.query.all()
         return jsonify([*map(meal_serializer, logged_meals)])
 
+@app.route('/api/meals_week', methods=['GET'])
+def meals_week():
+    now = datetime.now()
+    yesterday = now - timedelta(days=1)
+    _2_days_ago = now - timedelta(days=2)
+    _3_days_ago = now - timedelta(days=3)
+    _4_days_ago = now - timedelta(days=4)
+    _5_days_ago = now - timedelta(days=5)
+    _1_week_ago = now - timedelta(days=6)
+    weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
+    weekly_meals = [*map(meal_serializer, weeks_meals)]
+    for entry in weekly_meals:
+        if entry['time'] >= yesterday:
+            entry['time'] = 0
+        elif entry['time'] >= _2_days_ago:
+            entry['time'] = 1
+        elif entry['time'] >= _3_days_ago:
+            entry['time'] = 2
+        elif entry['time'] >= _4_days_ago:
+            entry['time'] = 3
+        elif entry['time'] >= _5_days_ago:
+            entry['time'] = 4
+        elif entry['time'] >= _1_week_ago:
+            entry['time'] = 5
+    return jsonify(weekly_meals)
+
 @app.route('/api/delete_meal', methods=['POST'])
 def delete():
     request_data = json.loads(request.data)
@@ -226,6 +252,11 @@ def delete():
     db.session.commit()
     logged_meals = Meal.query.all()
     return jsonify([*map(meal_serializer, logged_meals)])
+
+# @app.route('/api/user_graphs', methods=['GET'])
+# def user_graphs():
+#     meal_data = Meal.query.all()
+#     return 
 
 if __name__ == '__main__':
     app.run(debug=True)
