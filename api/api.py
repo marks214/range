@@ -221,28 +221,12 @@ def meal():
 
 @app.route('/api/meals_week', methods=['GET'])
 def meals_week():
-    now = datetime.now()
-    yesterday = now - timedelta(days=1)
-    _2_days_ago = now - timedelta(days=2)
-    _3_days_ago = now - timedelta(days=3)
-    _4_days_ago = now - timedelta(days=4)
-    _5_days_ago = now - timedelta(days=5)
-    _1_week_ago = now - timedelta(days=6)
+    _1_week_ago = datetime.now() - timedelta(days=6)
     weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
-        if entry['time'] >= yesterday:
-            entry['time'] = 1
-        elif entry['time'] >= _2_days_ago:
-            entry['time'] = 2
-        elif entry['time'] >= _3_days_ago:
-            entry['time'] = 3
-        elif entry['time'] >= _4_days_ago:
-            entry['time'] = 4
-        elif entry['time'] >= _5_days_ago:
-            entry['time'] = 5
-        elif entry['time'] >= _1_week_ago:
-            entry['time'] = 6
+        # replace the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
+        entry['time'] = entry['time'].isoweekday()
     return jsonify(weekly_meals)
 
 @app.route('/api/delete_meal', methods=['POST'])
