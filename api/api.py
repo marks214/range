@@ -232,17 +232,17 @@ def meals_week():
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
         if entry['time'] >= yesterday:
-            entry['time'] = 0
-        elif entry['time'] >= _2_days_ago:
             entry['time'] = 1
-        elif entry['time'] >= _3_days_ago:
+        elif entry['time'] >= _2_days_ago:
             entry['time'] = 2
-        elif entry['time'] >= _4_days_ago:
+        elif entry['time'] >= _3_days_ago:
             entry['time'] = 3
-        elif entry['time'] >= _5_days_ago:
+        elif entry['time'] >= _4_days_ago:
             entry['time'] = 4
-        elif entry['time'] >= _1_week_ago:
+        elif entry['time'] >= _5_days_ago:
             entry['time'] = 5
+        elif entry['time'] >= _1_week_ago:
+            entry['time'] = 6
     return jsonify(weekly_meals)
 
 @app.route('/api/delete_meal', methods=['POST'])
