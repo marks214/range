@@ -6,30 +6,30 @@ import flask_praetorian
 import flask_cors
 from datetime import datetime, timedelta
 
-app = Flask(__name__)
+application = Flask(__name__)
 guard = flask_praetorian.Praetorian()
 cors = flask_cors.CORS()
 config = configparser.ConfigParser()
 config.read('secrets.ini')
 
 base_url = 'https://api.edamam.com/api/food-database/v2/parser'
-app_key = config['api_keys']['EDAMAM_API_KEY']
-app_ID = config['api_keys']['EDAMAM_API_ID']
+application_key = config['api_keys']['EDAMAM_API_KEY']
+application_ID = config['api_keys']['EDAMAM_API_ID']
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = config['secret_key']['SECRET_KEY']
-app.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
-app.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
-app.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
-db = SQLAlchemy(app)
+application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+application.config['SECRET_KEY'] = config['secret_key']['SECRET_KEY']
+application.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
+application.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
+application.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
+db = SQLAlchemy(application)
 from models import Food, Meal, User
-guard.init_app(app, User)
+guard.init_application(application, User)
 
-#db.init_app(app)
-migrate = Migrate(app, db)
-cors.init_app(app)
+#db.init_application(application)
+migrate = Migrate(application, db)
+cors.init_application(application)
 
-with app.app_context():
+with application.application_context():
     db.create_all()
     if db.session.query(User).filter_by(username='Aimee').count() < 1:
         db.session.add(User(
@@ -40,7 +40,7 @@ with app.app_context():
     db.session.commit()
 
 # from https://yasoob.me/posts/how-to-setup-and-deploy-jwt-auth-using-react-and-flask/:
-@app.route('/api/login', methods=['POST'])
+@application.route('/api/login', methods=['POST'])
 def login():
     """
     Logs a user in by parsing a POST request containing user credentials and
@@ -56,7 +56,7 @@ def login():
     ret = {'access_token': guard.encode_jwt_token(user)}
     return ret, 200
 
-@app.route('/api/refresh', methods=['POST'])
+@application.route('/api/refresh', methods=['POST'])
 def refresh():
     """
     Refreshes an existing JWT by creating a new one that is a copy of the old
@@ -72,7 +72,7 @@ def refresh():
     return ret, 200
   
   
-@app.route('/api/protected')
+@application.route('/api/protected')
 @flask_praetorian.auth_required
 def protected():
     """
@@ -141,15 +141,15 @@ def food_serializer(food):
         'external_id': food.external_id
     }
 
-@app.route('/api/food', methods=['GET', 'POST'], defaults={'food': ''})
-@app.route('/api/food/<food>', methods=['GET', 'POST'])
+@application.route('/api/food', methods=['GET', 'POST'], defaults={'food': ''})
+@application.route('/api/food/<food>', methods=['GET', 'POST'])
 def index(food):
     if food == '':
         return '<h1>WELCOME!</h1>'
     if request.method == 'GET':
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
         if len(search_results) == 0:
-            url = f'{base_url}?ingr={food}&app_id={app_ID}&app_key={app_key}'
+            url = f'{base_url}?ingr={food}&application_id={application_ID}&application_key={application_key}'
             response = requests.get(url)
             data = response.json()['hints']
             found_foods = construct_food(data)
@@ -192,7 +192,7 @@ def meal_serializer(meal):
         'time': meal.time
     }
 
-@app.route('/api/meal', methods=['GET', 'POST'])
+@application.route('/api/meal', methods=['GET', 'POST'])
 def meal():
     if request.method == 'POST':
         if request.is_json:
@@ -219,7 +219,7 @@ def meal():
         logged_meals = Meal.query.all()
         return jsonify([*map(meal_serializer, logged_meals)])
 
-@app.route('/api/meals_week', methods=['GET'])
+@application.route('/api/meals_week', methods=['GET'])
 def meals_week():
     _1_week_ago = datetime.now() - timedelta(days=6)
     weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
@@ -229,7 +229,7 @@ def meals_week():
         entry['time'] = entry['time'].isoweekday()
     return jsonify(weekly_meals)
 
-@app.route('/api/delete_meal', methods=['POST'])
+@application.route('/api/delete_meal', methods=['POST'])
 def delete():
     request_data = json.loads(request.data)
     Meal.query.filter_by(id=request_data['id']).delete()
@@ -237,10 +237,10 @@ def delete():
     logged_meals = Meal.query.all()
     return jsonify([*map(meal_serializer, logged_meals)])
 
-# @app.route('/api/user_graphs', methods=['GET'])
+# @application.route('/api/user_graphs', methods=['GET'])
 # def user_graphs():
 #     meal_data = Meal.query.all()
 #     return 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    application.run(debug=True)
