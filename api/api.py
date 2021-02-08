@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, json
-import requests, uuid, os, json, secrets
+import requests, uuid, os, json, secrets, configparser
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import flask_praetorian
@@ -9,18 +9,18 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 guard = flask_praetorian.Praetorian()
 cors = flask_cors.CORS()
+config = configparser.ConfigParser()
+config.read('secrets.ini')
 
 base_url = 'https://api.edamam.com/api/food-database/v2/parser'
-app_key = os.getenv('EDAMAM_API_KEY')
-app_ID = os.getenv('EDAMAM_API_ID')
+app_key = config['api_keys']['EDAMAM_API_KEY']
+app_ID = config['api_keys']['EDAMAM_API_ID']
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-secret_key = secrets.token_hex(16)
-app.config['SECRET_KEY'] = secret_key
+app.config['SECRET_KEY'] = config['secret_key']['SECRET_KEY']
 app.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
 app.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
-app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://dbmasteruser:2BE:K$b(tgRjEi<JHWKeu7|Q7pjiy;_v@ls-86a832d304e8ec639a5771d66a0e55b8d098a550.ck91wsiodwbr.us-west-2.rds.amazonaws.com:5432/postgres'
-# os.getenv('POSTGRES')
+app.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
 db = SQLAlchemy(app)
 from models import Food, Meal, User
 guard.init_app(app, User)
@@ -225,7 +225,7 @@ def meals_week():
     weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
-        # replace the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
+        # replaces the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
         entry['time'] = entry['time'].isoweekday()
     return jsonify(weekly_meals)
 

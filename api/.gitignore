@@ -1,2 +1,3 @@
 .env
+secrets.ini
 to_delete/
