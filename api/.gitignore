@@ -1,3 +1,8 @@
 .env
 secrets.ini
 to_delete/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

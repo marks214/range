@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify, json
+from flask import Flask, request, jsonify, json, redirect
+from flask_awscognito import AWSCognitoAuthentication
 import requests, uuid, os, json, secrets, configparser
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -7,10 +8,23 @@ import flask_cors
 from datetime import datetime, timedelta
 
 application = Flask(__name__)
-guard = flask_praetorian.Praetorian()
-cors = flask_cors.CORS()
+application.config.extend({'COGNITO_REGION': 'us-west-2',
+    'COGNITO_USERPOOL_ID': 'us-west-2_K6goWsBpI'})
+from flask_cognito import CognitoAuth
+cogauth = CognitoAuth(application)
 config = configparser.ConfigParser()
 config.read('secrets.ini')
+
+# application.config['AWS_DEFAULT_REGION'] = 'us-west-2'
+# application.config['AWS_COGNITO_DOMAIN'] = 'rangereveal.auth.us-west-2.amazoncognito.com'
+# application.config['AWS_COGNITO_USER_POOL_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_ID']
+# application.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_CLIENT_ID']
+# application.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = config['cognito']['AWS_COGNITO_USER_POOL_CLIENT_SECRET']
+# # change later:
+# application.config['AWS_COGNITO_REDIRECT_URL'] = 'http://localhost:5000/aws_cognito_redirect'
+
+# aws_auth = AWSCognitoAuthentication(application)
+cors = flask_cors.CORS()
 
 base_url = 'https://api.edamam.com/api/food-database/v2/parser'
 application_key = config['api_keys']['EDAMAM_API_KEY']
@@ -23,66 +37,31 @@ application.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 application.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
 db = SQLAlchemy(application)
 from models import Food, Meal, User
-guard.init_application(application, User)
+# guard.init_app(application, User)
 
-#db.init_application(application)
+db.init_app(application)
 migrate = Migrate(application, db)
-cors.init_application(application)
+cors.init_app(application)
 
-with application.application_context():
-    db.create_all()
-    if db.session.query(User).filter_by(username='Aimee').count() < 1:
-        db.session.add(User(
-          username='Aimee',
-          password=guard.hash_password('strongpassword'),
-          roles='admin'
-		))
-    db.session.commit()
 
-# from https://yasoob.me/posts/how-to-setup-and-deploy-jwt-auth-using-react-and-flask/:
-@application.route('/api/login', methods=['POST'])
-def login():
-    """
-    Logs a user in by parsing a POST request containing user credentials and
-    issuing a JWT token.
-    .. example::
-       $ curl http://localhost:5000/api/login -X POST \
-         -d '{"username":"Aimee","password":"strongpassword"}'
-    """
-    req = request.get_json(force=True)
-    username = req.get('username', None)
-    password = req.get('password', None)
-    user = guard.authenticate(username, password)
-    ret = {'access_token': guard.encode_jwt_token(user)}
-    return ret, 200
+@cogauth.identity_handler
+def lookup_cognito_user(payload):
+    """Look up user in our database from Cognito JWT payload."""
+    return User.query.filter(User.cognito_username == payload['username']).one_or_none()
 
-@application.route('/api/refresh', methods=['POST'])
-def refresh():
-    """
-    Refreshes an existing JWT by creating a new one that is a copy of the old
-    except that it has a refrehsed access expiration.
-    .. example::
-       $ curl http://localhost:5000/api/refresh -X GET \
-         -H "Authorization: Bearer <your_token>"
-    """
-    print("refresh request")
-    old_token = request.get_data()
-    new_token = guard.refresh_jwt_token(old_token)
-    ret = {'access_token': new_token}
-    return ret, 200
-  
-  
-@application.route('/api/protected')
-@flask_praetorian.auth_required
-def protected():
-    """
-    A protected endpoint. The auth_required decorator will require a header
-    containing a valid JWT
-    .. example::
-       $ curl http://localhost:5000/api/protected -X GET \
-         -H "Authorization: Bearer <your_token>"
-    """
-    return {'message': f'protected endpoint (allowed user {flask_praetorian.current_user().username})'}
+# @application.route('/api/sign_in')
+# def sign_in():
+#     return redirect(aws_auth.get_sign_in_url())
+
+# @application.route('/')
+# def index():
+#     claims = aws_auth.claims # also available through g.cognito_claims
+#     return jsonify({'claims': claims})
+
+# @application.route('/aws_cognito_redirect')
+# def aws_cognito_redirect():
+#     access_token = aws_auth.get_access_token(request.args)
+#     return jsonify({'access_token': access_token})
 
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
@@ -143,13 +122,17 @@ def food_serializer(food):
 
 @application.route('/api/food', methods=['GET', 'POST'], defaults={'food': ''})
 @application.route('/api/food/<food>', methods=['GET', 'POST'])
-def index(food):
+def food(food):
+    claims = aws_auth.claims
+    print(jsonify({'claims': claims}))
+    access_token = aws_auth.get_access_token(request.args)
+    print(jsonify({'access_token': access_token}))
     if food == '':
         return '<h1>WELCOME!</h1>'
     if request.method == 'GET':
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
         if len(search_results) == 0:
-            url = f'{base_url}?ingr={food}&application_id={application_ID}&application_key={application_key}'
+            url = f'{base_url}?ingr={food}&app_id={str(application_ID)}&app_key={str(application_key)}'
             response = requests.get(url)
             data = response.json()['hints']
             found_foods = construct_food(data)
@@ -193,6 +176,7 @@ def meal_serializer(meal):
     }
 
 @application.route('/api/meal', methods=['GET', 'POST'])
+@aws_auth.authentication_required
 def meal():
     if request.method == 'POST':
         if request.is_json:
