@@ -1,29 +1,26 @@
 from flask import Flask, request, jsonify, json, redirect
 from flask_awscognito import AWSCognitoAuthentication
-import requests, uuid, os, json, secrets, configparser
+import requests, uuid, os, json, secrets, configparser, cognitojwt
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import flask_praetorian
 import flask_cors
+from cryptography.x509 import load_pem_x509_certificate
 from datetime import datetime, timedelta
 
 application = Flask(__name__)
-application.config.extend({'COGNITO_REGION': 'us-west-2',
-    'COGNITO_USERPOOL_ID': 'us-west-2_K6goWsBpI'})
-from flask_cognito import CognitoAuth
-cogauth = CognitoAuth(application)
 config = configparser.ConfigParser()
 config.read('secrets.ini')
 
-# application.config['AWS_DEFAULT_REGION'] = 'us-west-2'
-# application.config['AWS_COGNITO_DOMAIN'] = 'rangereveal.auth.us-west-2.amazoncognito.com'
-# application.config['AWS_COGNITO_USER_POOL_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_ID']
-# application.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_CLIENT_ID']
-# application.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = config['cognito']['AWS_COGNITO_USER_POOL_CLIENT_SECRET']
-# # change later:
-# application.config['AWS_COGNITO_REDIRECT_URL'] = 'http://localhost:5000/aws_cognito_redirect'
+application.config['AWS_DEFAULT_REGION'] = 'us-west-2'
+application.config['AWS_COGNITO_DOMAIN'] = 'rangereveal.auth.us-west-2.amazoncognito.com'
+application.config['AWS_COGNITO_USER_POOL_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_ID']
+application.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_CLIENT_ID']
+application.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = config['cognito']['AWS_COGNITO_USER_POOL_CLIENT_SECRET']
+# change later:
+application.config['AWS_COGNITO_REDIRECT_URL'] = 'http://localhost:5000/aws_cognito_redirect'
 
-# aws_auth = AWSCognitoAuthentication(application)
+aws_auth = AWSCognitoAuthentication(application)
 cors = flask_cors.CORS()
 
 base_url = 'https://api.edamam.com/api/food-database/v2/parser'
@@ -43,25 +40,38 @@ db.init_app(application)
 migrate = Migrate(application, db)
 cors.init_app(application)
 
+global curr_user
+curr_user = None
 
-@cogauth.identity_handler
-def lookup_cognito_user(payload):
-    """Look up user in our database from Cognito JWT payload."""
-    return User.query.filter(User.cognito_username == payload['username']).one_or_none()
+@application.route('/')
+@aws_auth.authentication_required
+def index():
+    claims = aws_auth.claims # also available through g.cognito_claims
+    return jsonify({'claims': claims})
 
-# @application.route('/api/sign_in')
-# def sign_in():
-#     return redirect(aws_auth.get_sign_in_url())
+@application.route('/aws_cognito_redirect')
+def aws_cognito_redirect():
+    access_token = aws_auth.get_access_token(request.args)
+    region = application.config['AWS_DEFAULT_REGION']
+    user_pool_ID = application.config['AWS_COGNITO_USER_POOL_ID']
+    verified_claims: dict = cognitojwt.decode(
+        access_token,
+        region,
+        user_pool_ID,
+        app_client_id = application.config['AWS_COGNITO_USER_POOL_CLIENT_ID'],
+        testmode=True)
+    username = verified_claims['username']
+    print('username:', username)
+    global curr_user
+    curr_user = username
+    print(curr_user)
+    return jsonify(verified_claims)
 
-# @application.route('/')
-# def index():
-#     claims = aws_auth.claims # also available through g.cognito_claims
-#     return jsonify({'claims': claims})
-
-# @application.route('/aws_cognito_redirect')
-# def aws_cognito_redirect():
-#     access_token = aws_auth.get_access_token(request.args)
-#     return jsonify({'access_token': access_token})
+@application.route('/api/sign_in')
+def sign_in():
+    claims = aws_auth.claims
+    print(aws_auth.get_sign_in_url())
+    return redirect(aws_auth.get_sign_in_url())
 
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
@@ -205,8 +215,9 @@ def meal():
 
 @application.route('/api/meals_week', methods=['GET'])
 def meals_week():
+    curr_user_id = get_user_id(curr_user)
     _1_week_ago = datetime.now() - timedelta(days=6)
-    weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
+    weeks_meals = Meal.query.filter_by(user_id=curr_user_id).filter(Meal.time >= _1_week_ago).all()
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
         # replaces the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
@@ -226,5 +237,34 @@ def delete():
 #     meal_data = Meal.query.all()
 #     return 
 
+def get_user_id(json_data):
+    exists = User.query.filter_by(username=curr_user).first()
+    if exists is None:
+        new_user = User(
+            username=curr_user,
+            energy_min=json_data['kcal_min'],
+            energy_max = json_data['kcal_max'],
+            protein_min = json_data['protein_min'], 
+            protein_max = json_data['protein_max'],
+            carb_min = json_data['carb_min'],
+            carb_max = json_data['carb_max'],
+            fat_min = json_data['fat_min'],
+            fat_max =json_data['fat_max']
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        print(f'{new_user.username} added to database')
+        return str(new_user.id)
+    else:
+        return str(exists.id)
+
+@application.route('/api/curr_user')
+def curr_user():
+    print("user is: ", curr_user)
+    if curr_user is None:
+        return jsonify({"message": "no user found"})
+    else:
+        return jsonify({"message": f"{curr_user} is logged in"})
+
 if __name__ == '__main__':
-    application.run(debug=True)
+    application.run(host='localhost', debug=True)
