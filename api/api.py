@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, json, redirect
+from flask import Flask, request, jsonify, json, redirect, session, Response, after_this_request
 from flask_awscognito import AWSCognitoAuthentication
 import requests, uuid, os, json, secrets, configparser, cognitojwt
 from flask_sqlalchemy import SQLAlchemy
@@ -34,7 +34,8 @@ application.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 application.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
 db = SQLAlchemy(application)
 from models import Food, Meal, User
-# guard.init_app(application, User)
+
+guard.init_app(application, User)
 
 db.init_app(application)
 migrate = Migrate(application, db)
@@ -61,11 +62,10 @@ def aws_cognito_redirect():
         app_client_id = application.config['AWS_COGNITO_USER_POOL_CLIENT_ID'],
         testmode=True)
     username = verified_claims['username']
-    print('username:', username)
     global curr_user
     curr_user = username
-    print(curr_user)
     return jsonify(verified_claims)
+    #return redirect('http://localhost:3000')
 
 @application.route('/api/sign_in')
 def sign_in():
@@ -129,6 +129,21 @@ def food_serializer(food):
         'image': food.image,
         'external_id': food.external_id
     }
+
+@application.route('/api/refresh', methods=['POST'])
+def refresh():
+    """
+    Refreshes an existing JWT by creating a new one that is a copy of the old
+    except that it has a refrehsed access expiration.
+    .. example::
+       $ curl http://localhost:5000/refresh -X GET \
+         -H "Authorization: Bearer <your_token>"
+    """
+    print("refresh request")
+    old_token = request.get_data()
+    new_token = guard.refresh_jwt_token(old_token)
+    ret = {'access_token': new_token}
+    return ret, 200
 
 @application.route('/api/food', methods=['GET', 'POST'], defaults={'food': ''})
 @application.route('/api/food/<food>', methods=['GET', 'POST'])
