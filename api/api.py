@@ -23,13 +23,13 @@ application.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 application.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
 db = SQLAlchemy(application)
 from models import Food, Meal, User
-guard.init_application(application, User)
+guard.init_app(application, User)
 
 #db.init_application(application)
 migrate = Migrate(application, db)
-cors.init_application(application)
+cors.init_app(application)
 
-with application.application_context():
+with application.app_context():
     db.create_all()
     if db.session.query(User).filter_by(username='Aimee').count() < 1:
         db.session.add(User(
@@ -149,7 +149,7 @@ def index(food):
     if request.method == 'GET':
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
         if len(search_results) == 0:
-            url = f'{base_url}?ingr={food}&application_id={application_ID}&application_key={application_key}'
+            url = f'{base_url}?ingr={food}&app_id={application_ID}&app_key={application_key}'
             response = requests.get(url)
             data = response.json()['hints']
             found_foods = construct_food(data)
