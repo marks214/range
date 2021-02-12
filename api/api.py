@@ -29,6 +29,7 @@ db.init_app(application)
 migrate = Migrate(application, db)
 cors.init_app(application)
 
+################ LOGIN RELATED ################
 with application.app_context():
     db.create_all()
     if db.session.query(User).filter_by(username='Aimee').count() < 1:
@@ -84,6 +85,7 @@ def protected():
     """
     return {'message': f'protected endpoint (allowed user {flask_praetorian.current_user().username})'}
 
+################ FOOD MODEL RELATED ################
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
         # check for unique external id
@@ -182,6 +184,7 @@ def index(food):
         else:
             return {"error": "The request failed."}
 
+################ MEAL MODEL RELATED ################
 def meal_serializer(meal):
     return {
         'id': meal.id,
@@ -238,6 +241,83 @@ def delete():
     db.session.commit()
     logged_meals = Meal.query.all()
     return jsonify([*map(meal_serializer, logged_meals)])
+
+################ USER MODEL RELATED ################
+# get_user_id NOT in use
+def get_user_id(user_name):
+    exists = User.query.filter_by(username=user_name).first() # HARDCODED AS AIMEE
+    if exists is None:
+        new_user = User(
+            username=user_name,
+            energy_min=json_data['kcal_min'],
+            energy_max = json_data['kcal_max'],
+            protein_min = json_data['protein_min'], 
+            protein_max = json_data['protein_max'],
+            carb_min = json_data['carb_min'],
+            carb_max = json_data['carb_max'],
+            fat_min = json_data['fat_min'],
+            fat_max =json_data['fat_max'],
+            fiber_min = json_data['fiber_min'],
+            fiber_max =json_data['fiber_max']
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        print(f'{new_user.username} added to database')
+        return str(new_user.id)
+    else:
+        return str(exists.id)
+
+def user_serializer(user):
+    return {
+        'id': user.id,
+        'username': user.username,
+        'energy_min': user.energy_min,
+        'energy_max': user.energy_max,
+        'protein_min': user.protein_min,
+        'protein_max': user.protein_max,
+        'carb_min': user.carb_min,
+        'carb_max': user.carb_min,
+        'fat_min': user.fat_min,
+        'fat_max': user.fat_max,
+        'fiber_min': user.fiber_min,
+        'fiber_max': user.fiber_max,
+    }
+
+@application.route('/api/user/<id>', methods=['GET', 'POST'])
+def user_goal_update(id):
+    if request.method == 'POST':
+        data = request.get_json()
+        curr_user = User.query.filter_by(id=id).first()
+        if type(data['energy_min']) is int:
+            curr_user.energy_min = data['energy_min']
+        if type(data['energy_max']) is int:
+            curr_user.energy_max = data['energy_max']
+        if type(data['protein_min']) is int:
+            curr_user.protein_min = data['protein_min']
+        if type(data['protein_max']) is int:
+            curr_user.protein_max = data['protein_max']
+        if type(data['carb_min']) is int:
+            curr_user.carb_min = data['carb_min']
+        if type(data['carb_max']) is int:
+            curr_user.carb_max = data['carb_max']
+        if type(data['fat_min']) is int:
+            curr_user.fat_min = data['fat_min']
+        if type(data['fat_max']) is int:
+            curr_user.fat_max = data['fat_max']
+        if type(data['fiber_min']) is int:
+            curr_user.fiber_min = data['fiber_min']
+        if type(data['fiber_max']) is int:
+            curr_user.fiber_max = data['fiber_max']
+        db.session.commit()
+        user_data = User.query.filter_by(id=id).first()
+        return str(user_data)
+    else:
+        pass
+    # print("user is: ", name)
+    # if name is None:
+    #     return jsonify({"message": "no user found"})
+    # else:
+    #     return jsonify({"message": f"{Aimee} is logged in"})
 
 if __name__ == '__main__':
     application.run(debug=True, host='localhost')
