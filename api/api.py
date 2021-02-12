@@ -25,7 +25,7 @@ db = SQLAlchemy(application)
 from models import Food, Meal, User
 guard.init_app(application, User)
 
-#db.init_application(application)
+db.init_app(application)
 migrate = Migrate(application, db)
 cors.init_app(application)
 
@@ -125,8 +125,8 @@ def construct_food(json_data):
             db.session.commit()
             print(f'{food.name} added to database')
 
-        else:
-            pass
+        # else:
+        #     pass
 
 def food_serializer(food):
     return {
@@ -147,18 +147,20 @@ def index(food):
     if food == '':
         return '<h1>WELCOME!</h1>'
     if request.method == 'GET':
+        # search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
+        # print('here: ', type(search_results))
+        # if len(search_results) == 0:
+        url = f'{base_url}?ingr={food}&app_id={application_ID}&app_key={application_key}'
+        response = requests.get(url)
+        data = response.json()['hints']
+        found_foods = construct_food(data)
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
-        if len(search_results) == 0:
-            url = f'{base_url}?ingr={food}&app_id={application_ID}&app_key={application_key}'
-            response = requests.get(url)
-            data = response.json()['hints']
-            found_foods = construct_food(data)
-            food_matches = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
-            return jsonify([*map(food_serializer, food_matches)])
-        elif len(search_results) > 0:
-            return jsonify([*map(food_serializer, search_results)])
-        else:
-          pass
+            #return jsonify([*map(food_serializer, food_matches)])
+        # elif len(search_results) > 0:
+        # search_results.extend(food_matches)
+        return jsonify([*map(food_serializer, search_results)])
+        # else:
+        #   pass
 
     elif request.method == 'POST':
         if request.is_json:
@@ -207,7 +209,7 @@ def meal():
                 fiber=data['fiber'],
                 time=datetime.now(),
                 food_id=data['id'],
-                user_id=2 # hard-coded as Aimee
+                user_id=1 # hard-coded as Aimee
                 )
             db.session.add(new_meal)
             db.session.commit()
@@ -221,8 +223,8 @@ def meal():
 
 @application.route('/api/meals_week', methods=['GET'])
 def meals_week():
-    _1_week_ago = datetime.now() - timedelta(days=6)
-    weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
+    _1_week_ago = datetime.now() - timedelta(days=7)
+    weeks_meals = Meal.query.filter(Meal.time > _1_week_ago).all()
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
         # replaces the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
@@ -237,10 +239,5 @@ def delete():
     logged_meals = Meal.query.all()
     return jsonify([*map(meal_serializer, logged_meals)])
 
-# @application.route('/api/user_graphs', methods=['GET'])
-# def user_graphs():
-#     meal_data = Meal.query.all()
-#     return 
-
 if __name__ == '__main__':
-    application.run(debug=True)
+    application.run(debug=True, host='localhost')
