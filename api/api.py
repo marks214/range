@@ -2,12 +2,11 @@ from flask import Flask, request, jsonify, json
 import requests, uuid, os, json, secrets, configparser
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-import flask_praetorian
 from flask_cors import CORS
 from datetime import datetime, timedelta
+from flask_cognito import cognito_auth_required, current_user, current_cognito_jwt
 
 application = Flask(__name__)
-guard = flask_praetorian.Praetorian()
 CORS(application)
 config = configparser.ConfigParser()
 config.read('secrets.ini')
@@ -21,69 +20,39 @@ application.config['SECRET_KEY'] = config['secret_key']['SECRET_KEY']
 application.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
 application.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 application.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
+
+application.config['COGNITO_REGION'] = 'us-west-2'
+application.config['COGNITO_USERPOOL_ID'] = config['cognito']['AWS_COGNITO_USER_POOL_ID']
+application.config['COGNITO_JWT_HEADER_NAME'] = 'Authorization'
+
+from flask_cognito import CognitoAuth
+cogauth = CognitoAuth(application)
+
+def get_or_create_user(user_name):
+    exists = User.query.filter_by(username=user_name).first()
+    if exists is None:
+        new_user = User(username=user_name)
+        db.session.add(new_user)
+        db.session.commit()
+        print(f'{new_user.username} added to database')
+        return new_user
+    else:
+        return exists
+
+################ LOGIN RELATED ################
+@cogauth.identity_handler
+def lookup_cognito_user(payload):
+    """Look up user in our database from Cognito JWT payload."""
+    return get_or_create_user(payload['username'])
+
+
 db = SQLAlchemy(application)
 from models import Food, Meal, User
-# guard.init_application(application, User)
 
-#db.init_application(application)
+db.init_app(application)
 migrate = Migrate(application, db)
-# cors.init_application(application)
 
-# with application.application_context():
-#     db.create_all()
-#     if db.session.query(User).filter_by(username='Aimee').count() < 1:
-#         db.session.add(User(
-#           username='Aimee',
-#           password=guard.hash_password('strongpassword'),
-#           roles='admin'
-# 		))
-#     db.session.commit()
-
-# from https://yasoob.me/posts/how-to-setup-and-deploy-jwt-auth-using-react-and-flask/:
-# @application.route('/api/login', methods=['POST'])
-# def login():
-#     """
-#     Logs a user in by parsing a POST request containing user credentials and
-#     issuing a JWT token.
-#     .. example::
-#        $ curl http://localhost:5000/api/login -X POST \
-#          -d '{"username":"Aimee","password":"strongpassword"}'
-#     """
-#     req = request.get_json(force=True)
-#     username = req.get('username', None)
-#     password = req.get('password', None)
-#     user = guard.authenticate(username, password)
-#     ret = {'access_token': guard.encode_jwt_token(user)}
-#     return ret, 200
-
-# @application.route('/api/refresh', methods=['POST'])
-# def refresh():
-#     """
-#     Refreshes an existing JWT by creating a new one that is a copy of the old
-#     except that it has a refrehsed access expiration.
-#     .. example::
-#        $ curl http://localhost:5000/api/refresh -X GET \
-#          -H "Authorization: Bearer <your_token>"
-#     """
-#     print("refresh request")
-#     old_token = request.get_data()
-#     new_token = guard.refresh_jwt_token(old_token)
-#     ret = {'access_token': new_token}
-#     return ret, 200
-  
-  
-# @application.route('/api/protected')
-# @flask_praetorian.auth_required
-# def protected():
-#     """
-#     A protected endpoint. The auth_required decorator will require a header
-#     containing a valid JWT
-#     .. example::
-#        $ curl http://localhost:5000/api/protected -X GET \
-#          -H "Authorization: Bearer <your_token>"
-#     """
-#     return {'message': f'protected endpoint (allowed user {flask_praetorian.current_user().username})'}
-
+################ FOOD MODEL RELATED ################
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
         # check for unique external id
@@ -143,13 +112,14 @@ def food_serializer(food):
 
 @application.route('/api/food', methods=['GET', 'POST'], defaults={'food': ''})
 @application.route('/api/food/<food>', methods=['GET', 'POST'])
+@cognito_auth_required
 def index(food):
     if food == '':
         return '<h1>WELCOME!</h1>'
     if request.method == 'GET':
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
         if len(search_results) == 0:
-            url = f'{base_url}?ingr={food}&application_id={application_ID}&application_key={application_key}'
+            url = f'{base_url}?ingr={food}&app_id={application_ID}&app_key={application_key}'
             response = requests.get(url)
             data = response.json()['hints']
             found_foods = construct_food(data)
@@ -180,6 +150,8 @@ def index(food):
         else:
             return {"error": "The request failed."}
 
+
+################ MEAL MODEL RELATED ################
 def meal_serializer(meal):
     return {
         'id': meal.id,
@@ -191,8 +163,9 @@ def meal_serializer(meal):
         'fiber': meal.fiber,
         'time': meal.time
     }
-
+        
 @application.route('/api/meal', methods=['GET', 'POST'])
+@cognito_auth_required
 def meal():
     if request.method == 'POST':
         if request.is_json:
@@ -220,9 +193,10 @@ def meal():
         return jsonify([*map(meal_serializer, logged_meals)])
 
 @application.route('/api/meals_week', methods=['GET'])
+@cognito_auth_required
 def meals_week():
-    _1_week_ago = datetime.now() - timedelta(days=6)
-    weeks_meals = Meal.query.filter(Meal.time >= _1_week_ago).all()
+    _1_week_ago = datetime.now() - timedelta(days=7)
+    weeks_meals = Meal.query.filter(Meal.time > _1_week_ago).all()
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
         # replaces the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
@@ -230,17 +204,13 @@ def meals_week():
     return jsonify(weekly_meals)
 
 @application.route('/api/delete_meal', methods=['POST'])
+@cognito_auth_required
 def delete():
     request_data = json.loads(request.data)
     Meal.query.filter_by(id=request_data['id']).delete()
     db.session.commit()
     logged_meals = Meal.query.all()
     return jsonify([*map(meal_serializer, logged_meals)])
-
-# @application.route('/api/user_graphs', methods=['GET'])
-# def user_graphs():
-#     meal_data = Meal.query.all()
-#     return 
 
 if __name__ == '__main__':
     application.run(debug=True)
