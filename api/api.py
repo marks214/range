@@ -3,12 +3,12 @@ import requests, uuid, os, json, secrets, configparser
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import flask_praetorian
-import flask_cors
+from flask_cors import CORS
 from datetime import datetime, timedelta
 
 application = Flask(__name__)
 guard = flask_praetorian.Praetorian()
-cors = flask_cors.CORS()
+CORS(application)
 config = configparser.ConfigParser()
 config.read('secrets.ini')
 
@@ -23,66 +23,66 @@ application.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 application.config["SQLALCHEMY_DATABASE_URI"] = config['postgresql']['POSTGRESDB']
 db = SQLAlchemy(application)
 from models import Food, Meal, User
-guard.init_application(application, User)
+# guard.init_application(application, User)
 
 #db.init_application(application)
 migrate = Migrate(application, db)
-cors.init_application(application)
+# cors.init_application(application)
 
-with application.application_context():
-    db.create_all()
-    if db.session.query(User).filter_by(username='Aimee').count() < 1:
-        db.session.add(User(
-          username='Aimee',
-          password=guard.hash_password('strongpassword'),
-          roles='admin'
-		))
-    db.session.commit()
+# with application.application_context():
+#     db.create_all()
+#     if db.session.query(User).filter_by(username='Aimee').count() < 1:
+#         db.session.add(User(
+#           username='Aimee',
+#           password=guard.hash_password('strongpassword'),
+#           roles='admin'
+# 		))
+#     db.session.commit()
 
 # from https://yasoob.me/posts/how-to-setup-and-deploy-jwt-auth-using-react-and-flask/:
-@application.route('/api/login', methods=['POST'])
-def login():
-    """
-    Logs a user in by parsing a POST request containing user credentials and
-    issuing a JWT token.
-    .. example::
-       $ curl http://localhost:5000/api/login -X POST \
-         -d '{"username":"Aimee","password":"strongpassword"}'
-    """
-    req = request.get_json(force=True)
-    username = req.get('username', None)
-    password = req.get('password', None)
-    user = guard.authenticate(username, password)
-    ret = {'access_token': guard.encode_jwt_token(user)}
-    return ret, 200
+# @application.route('/api/login', methods=['POST'])
+# def login():
+#     """
+#     Logs a user in by parsing a POST request containing user credentials and
+#     issuing a JWT token.
+#     .. example::
+#        $ curl http://localhost:5000/api/login -X POST \
+#          -d '{"username":"Aimee","password":"strongpassword"}'
+#     """
+#     req = request.get_json(force=True)
+#     username = req.get('username', None)
+#     password = req.get('password', None)
+#     user = guard.authenticate(username, password)
+#     ret = {'access_token': guard.encode_jwt_token(user)}
+#     return ret, 200
 
-@application.route('/api/refresh', methods=['POST'])
-def refresh():
-    """
-    Refreshes an existing JWT by creating a new one that is a copy of the old
-    except that it has a refrehsed access expiration.
-    .. example::
-       $ curl http://localhost:5000/api/refresh -X GET \
-         -H "Authorization: Bearer <your_token>"
-    """
-    print("refresh request")
-    old_token = request.get_data()
-    new_token = guard.refresh_jwt_token(old_token)
-    ret = {'access_token': new_token}
-    return ret, 200
+# @application.route('/api/refresh', methods=['POST'])
+# def refresh():
+#     """
+#     Refreshes an existing JWT by creating a new one that is a copy of the old
+#     except that it has a refrehsed access expiration.
+#     .. example::
+#        $ curl http://localhost:5000/api/refresh -X GET \
+#          -H "Authorization: Bearer <your_token>"
+#     """
+#     print("refresh request")
+#     old_token = request.get_data()
+#     new_token = guard.refresh_jwt_token(old_token)
+#     ret = {'access_token': new_token}
+#     return ret, 200
   
   
-@application.route('/api/protected')
-@flask_praetorian.auth_required
-def protected():
-    """
-    A protected endpoint. The auth_required decorator will require a header
-    containing a valid JWT
-    .. example::
-       $ curl http://localhost:5000/api/protected -X GET \
-         -H "Authorization: Bearer <your_token>"
-    """
-    return {'message': f'protected endpoint (allowed user {flask_praetorian.current_user().username})'}
+# @application.route('/api/protected')
+# @flask_praetorian.auth_required
+# def protected():
+#     """
+#     A protected endpoint. The auth_required decorator will require a header
+#     containing a valid JWT
+#     .. example::
+#        $ curl http://localhost:5000/api/protected -X GET \
+#          -H "Authorization: Bearer <your_token>"
+#     """
+#     return {'message': f'protected endpoint (allowed user {flask_praetorian.current_user().username})'}
 
 def construct_food(json_data):
     for i in range(len(json_data) - 1):
