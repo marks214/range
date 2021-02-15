@@ -72,6 +72,15 @@ def user():
             print('data', data)
             print(data['energy_min'], type(data['energy_min']))
             user.energy_min = data['energy_min']
+            user.energy_max = data['energy_max']
+            user.protein_min = data['protein_min']
+            user.protein_max = data['protein_max']
+            user.carb_min = data['carb_min']
+            user.carb_max = data['carb_max']
+            user.fat_min = data['fat_min']
+            user.fat_max = data['fat_max']
+            user.fiber_min = data['fiber_min']
+            user.fiber_max = data['fiber_max']
             db.session.commit()
             return jsonify(user_serializer(user))
         else:
