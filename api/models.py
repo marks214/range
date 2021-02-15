@@ -49,7 +49,10 @@ class User(db.Model):
 
 
     def __repr__(self):
-        return '<User %>' % self.username
+        return '<User %r>' % self.username
+
+    # def __str__(self):
+    #     return f'{self.username}'
 
 # a meal is an individual food consumed by the user (meals do not have multiple foods)
 

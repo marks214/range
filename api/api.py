@@ -28,29 +28,71 @@ application.config['COGNITO_JWT_HEADER_NAME'] = 'Authorization'
 from flask_cognito import CognitoAuth
 cogauth = CognitoAuth(application)
 
-def get_or_create_user(user_name):
-    exists = User.query.filter_by(username=user_name).first()
-    if exists is None:
-        new_user = User(username=user_name)
-        db.session.add(new_user)
-        db.session.commit()
-        print(f'{new_user.username} added to database')
-        return new_user
-    else:
-        return exists
-
-################ LOGIN RELATED ################
-@cogauth.identity_handler
-def lookup_cognito_user(payload):
-    """Look up user in our database from Cognito JWT payload."""
-    return get_or_create_user(payload['username'])
-
 
 db = SQLAlchemy(application)
 from models import Food, Meal, User
 
 db.init_app(application)
 migrate = Migrate(application, db)
+
+################ USER MODEL RELATED ################
+def get_current_user():
+    username = current_cognito_jwt['username']
+    print('username:', username)
+    user = User.query.filter_by(username=username).first()
+    print(user)
+    return user
+
+def user_serializer(user):
+    return {
+        'id': user.id,
+        'username': user.username,
+        'energy_min': user.energy_min,
+        'energy_max': user.energy_max,
+        'protein_min': user.protein_min,
+        'protein_max': user.protein_max,
+        'carb_min': user.carb_min,
+        'carb_max': user.carb_max,
+        'fat_min': user.fat_min,
+        'fat_max': user.fat_max,
+        'fiber_min': user.fiber_min,
+        'fiber_max': user.fiber_max,
+    }
+
+@application.route('/api/user', methods=['GET', 'POST'])
+@cognito_auth_required
+def user():
+    user = get_current_user()
+    if request.method is 'GET':
+        return jsonify(user_serializer(user))
+    elif request.method is 'POST':
+        if request.is_json:
+            print('here')
+            data = request.get_json()
+            energy_min = data['enery_min'] if type(data['energy_min']) is int else user.energy_min
+            # updated_user = user.update({
+            #     "energy_min" : energy_min
+            # })
+            db.session.commit()
+            return jsonify(user_serializer(user))
+        else:
+            return {"error": "The request failed."}
+
+
+################ LOGIN RELATED ################
+@cogauth.identity_handler
+def lookup_cognito_user(payload):
+    """Look up user in our database from Cognito JWT payload."""
+    username = payload['username']
+    exists = User.query.filter_by(username=username).first()
+    if exists is None:
+        new_user = User(username=username)
+        db.session.add(new_user)
+        db.session.commit()
+        print(f'{new_user.username} added to database')
+        return new_user
+    else:
+        return exists
 
 ################ FOOD MODEL RELATED ################
 def construct_food(json_data):
@@ -167,8 +209,7 @@ def meal_serializer(meal):
 @application.route('/api/meal', methods=['GET', 'POST'])
 @cognito_auth_required
 def meal():
-    username = current_cognito_jwt['username']
-    user = User.query.filter_by(username=username).first()
+    user = get_current_user()
     user_id = user.id
     if request.method == 'POST':
         if request.is_json:
