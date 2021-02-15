@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from datetime import datetime, timedelta
-from flask_cognito import cognito_auth_required, current_user, current_cognito_jwt
+from flask_cognito import cognito_auth_required, current_user, current_cognito_jwt 
 
 application = Flask(__name__)
 CORS(application)
