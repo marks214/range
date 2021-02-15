@@ -2,6 +2,10 @@ branch-defaults:
   default:
     environment: range-dev
     group_suffix: null
+environment-defaults:
+  range-dev:
+    branch: null
+    repository: null
 global:
   application_name: range
   branch: null
