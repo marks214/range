@@ -167,6 +167,9 @@ def meal_serializer(meal):
 @application.route('/api/meal', methods=['GET', 'POST'])
 @cognito_auth_required
 def meal():
+    username = current_cognito_jwt['username']
+    user = User.query.filter_by(username=username).first()
+    user_id = user.id
     if request.method == 'POST':
         if request.is_json:
             data = request.get_json()
@@ -180,7 +183,7 @@ def meal():
                 fiber=data['fiber'],
                 time=datetime.now(),
                 food_id=data['id'],
-                user_id=2 # hard-coded as Aimee
+                user_id=user_id
                 )
             db.session.add(new_meal)
             db.session.commit()
@@ -189,7 +192,7 @@ def meal():
         else:
             return {"error": "The request failed."}
     elif request.method == 'GET':
-        logged_meals = Meal.query.all()
+        logged_meals = Meal.query.filter_by(user_id=user_id).all()
         return jsonify([*map(meal_serializer, logged_meals)])
 
 @application.route('/api/meals_week', methods=['GET'])
