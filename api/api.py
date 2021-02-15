@@ -63,20 +63,21 @@ def user_serializer(user):
 @cognito_auth_required
 def user():
     user = get_current_user()
-    if request.method is 'GET':
+    if request.method == 'GET':
         return jsonify(user_serializer(user))
-    elif request.method is 'POST':
+    elif request.method == 'POST':
         if request.is_json:
             print('here')
             data = request.get_json()
-            energy_min = data['enery_min'] if type(data['energy_min']) is int else user.energy_min
-            # updated_user = user.update({
-            #     "energy_min" : energy_min
-            # })
+            print('data', data)
+            print(data['energy_min'], type(data['energy_min']))
+            user.energy_min = data['energy_min']
             db.session.commit()
             return jsonify(user_serializer(user))
         else:
             return {"error": "The request failed."}
+    else:
+        pass
 
 
 ################ LOGIN RELATED ################
