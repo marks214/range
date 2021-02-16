@@ -129,7 +129,6 @@ def construct_food(json_data):
             fiber = json_data[i]['food']['nutrients']['FIBTG'] if 'FIBTG' in json_data[i]['food']['nutrients'].keys(
             ) else 0
 
-            # Image by <a href="https://pixabay.com/users/daria-yakovleva-3938704/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=1898194">Дарья Яковлева</a> from <a href="https://pixabay.com/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=1898194">Pixabay</a>
             image = json_data[i]['food']['image'] if 'image' in json_data[i]['food'].keys() else 'https://cdn.pixabay.com/photo/2016/12/10/21/26/food-1898194_960_720.jpg'
 
             external_id = json_data[i]['food']['foodId']
@@ -169,18 +168,12 @@ def index(food):
     if food == '':
         return '<h1>WELCOME!</h1>'
     if request.method == 'GET':
+        url = f'{base_url}?ingr={food}&app_id={application_ID}&app_key={application_key}'
+        response = requests.get(url)
+        data = response.json()['hints']
+        found_foods = construct_food(data)
         search_results = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
-        if len(search_results) == 0:
-            url = f'{base_url}?ingr={food}&app_id={application_ID}&app_key={application_key}'
-            response = requests.get(url)
-            data = response.json()['hints']
-            found_foods = construct_food(data)
-            food_matches = Food.query.filter(Food.name.ilike(f'%{food}%')).all()
-            return jsonify([*map(food_serializer, food_matches)])
-        elif len(search_results) > 0:
-            return jsonify([*map(food_serializer, search_results)])
-        else:
-          pass
+        return jsonify([*map(food_serializer, search_results)])
 
     elif request.method == 'POST':
         if request.is_json:
@@ -194,7 +187,7 @@ def index(food):
                 carbohydrate=int(data['carbohydrate']),
                 fat=int(data['fat']),
                 fiber=int(data['fiber']),
-                image='https://cdn.pixabay.com/photo/2018/03/28/20/32/food-3270461_960_720.jpg') #hard-coded image: Image by <a href="https://pixabay.com/users/sansoja-8524640/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=3270461">sansoja</a> from <a href="https://pixabay.com/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=3270461">Pixabay</a>
+                image='https://cdn.pixabay.com/photo/2018/03/28/20/32/food-3270461_960_720.jpg')
             db.session.add(new_food)
             db.session.commit()
             recently_added = Food.query.filter_by(name=new_food.name)
@@ -249,8 +242,10 @@ def meal():
 @application.route('/api/meals_week', methods=['GET'])
 @cognito_auth_required
 def meals_week():
+    user = get_current_user()
+    user_id = user.id
     _1_week_ago = datetime.now() - timedelta(days=7)
-    weeks_meals = Meal.query.filter(Meal.time > _1_week_ago).all()
+    weeks_meals = Meal.query.filter(Meal.time > _1_week_ago, Meal.user_id==user_id).all()
     weekly_meals = [*map(meal_serializer, weeks_meals)]
     for entry in weekly_meals:
         # replaces the time-stamp with an integer (1 - 7), where Mon = 1 and Sunday = 7
@@ -267,4 +262,4 @@ def delete():
     return jsonify([*map(meal_serializer, logged_meals)])
 
 if __name__ == '__main__':
-    application.run(debug=True)
+    application.run(host='localhost', debug=True)
