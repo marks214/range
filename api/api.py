@@ -129,7 +129,6 @@ def construct_food(json_data):
             fiber = json_data[i]['food']['nutrients']['FIBTG'] if 'FIBTG' in json_data[i]['food']['nutrients'].keys(
             ) else 0
 
-            # Image by <a href="https://pixabay.com/users/daria-yakovleva-3938704/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=1898194">Дарья Яковлева</a> from <a href="https://pixabay.com/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=1898194">Pixabay</a>
             image = json_data[i]['food']['image'] if 'image' in json_data[i]['food'].keys() else 'https://cdn.pixabay.com/photo/2016/12/10/21/26/food-1898194_960_720.jpg'
 
             external_id = json_data[i]['food']['foodId']
@@ -188,7 +187,7 @@ def index(food):
                 carbohydrate=int(data['carbohydrate']),
                 fat=int(data['fat']),
                 fiber=int(data['fiber']),
-                image='https://cdn.pixabay.com/photo/2018/03/28/20/32/food-3270461_960_720.jpg') #hard-coded image: Image by <a href="https://pixabay.com/users/sansoja-8524640/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=3270461">sansoja</a> from <a href="https://pixabay.com/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=image&amp;utm_content=3270461">Pixabay</a>
+                image='https://cdn.pixabay.com/photo/2018/03/28/20/32/food-3270461_960_720.jpg')
             db.session.add(new_food)
             db.session.commit()
             recently_added = Food.query.filter_by(name=new_food.name)
