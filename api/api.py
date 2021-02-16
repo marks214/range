@@ -262,4 +262,4 @@ def delete():
     return jsonify([*map(meal_serializer, logged_meals)])
 
 if __name__ == '__main__':
-    application.run(host='localhost', debug=True)
+    application.run()
