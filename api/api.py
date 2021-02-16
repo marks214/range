@@ -236,7 +236,7 @@ def meal():
         else:
             return {"error": "The request failed."}
     elif request.method == 'GET':
-        logged_meals = Meal.query.filter_by(user_id=user_id).all()
+        logged_meals = Meal.query.filter_by(user_id=user_id).order_by(Meal.time.desc()).all()
         return jsonify([*map(meal_serializer, logged_meals)])
 
 @application.route('/api/meals_week', methods=['GET'])
