@@ -1,4 +1,4 @@
-# 🍎📊 [Range Reveal](https://www.rangereveal.com/) 📈🫐
+# 🍎📊 Range Reveal 📈🍓
 
 ### Capstone Project - Aimee Oz - [Ada Developers Academy](https://adadevelopersacademy.org/)
 
